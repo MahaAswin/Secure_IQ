@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: SecureIQ-Test
+  datasource:
+    url: jdbc:postgresql://localhost:5432/secureiq_db
+    username: postgres
+    password: database
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+app:
+  jwt:
+    secret: dGhpcy1pcy1hLXNlY3VyZS1hbmQtc3VwZXItbG9uZy1zZWNyZXQta2V5LXdoaWNoLXNob3VsZC1iZS1hdC1sZWFzdC0yNTYtYml0cw==
+    expiration-ms: 86400000
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
