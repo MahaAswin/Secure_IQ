@@ -4,6 +4,7 @@ import com.secureiq.SecureIQ.common.exception.ConflictException;
 import com.secureiq.SecureIQ.common.exception.NotFoundException;
 import com.secureiq.SecureIQ.common.exception.BadRequestException;
 import com.secureiq.SecureIQ.user.dto.UserCreateRequest;
+import com.secureiq.SecureIQ.user.dto.UserPatchRequest;
 import com.secureiq.SecureIQ.user.dto.UserResponse;
 import com.secureiq.SecureIQ.user.dto.UserUpdateRequest;
 import com.secureiq.SecureIQ.user.mapper.UserMapper;
@@ -12,6 +13,9 @@ import com.secureiq.SecureIQ.user.model.User;
 import com.secureiq.SecureIQ.user.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,11 +72,56 @@ public class UserServiceImpl implements UserService {
     public UserResponse update(Long id, UserUpdateRequest request) {
         User user = getEntityById(id);
 
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            if (user.getRole() != request.getRole() || user.getStatus() != request.getStatus()) {
+                throw new AccessDeniedException("Access denied: Non-admin users cannot change their role or status");
+            }
+        }
+
         if (!user.getEmail().equalsIgnoreCase(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
             throw new ConflictException("Email is already registered");
         }
 
         userMapper.updateEntity(request, user);
+
+        if (StringUtils.hasText(request.getPassword())) {
+            if (request.getPassword().length() < 6) {
+                throw new BadRequestException("Password must be at least 6 characters");
+            }
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
+
+        User savedUser = userRepository.save(user);
+        return userMapper.toResponse(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse patch(Long id, UserPatchRequest request) {
+        User user = getEntityById(id);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            if ((request.getRole() != null && request.getRole() != user.getRole()) ||
+                (request.getStatus() != null && request.getStatus() != user.getStatus())) {
+                throw new AccessDeniedException("Access denied: Non-admin users cannot change their role or status");
+            }
+        }
+
+        if (request.getEmail() != null && !user.getEmail().equalsIgnoreCase(request.getEmail())) {
+            if (userRepository.existsByEmail(request.getEmail())) {
+                throw new ConflictException("Email is already registered");
+            }
+        }
+
+        userMapper.patchEntity(request, user);
 
         if (StringUtils.hasText(request.getPassword())) {
             if (request.getPassword().length() < 6) {

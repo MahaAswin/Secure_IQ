@@ -2,6 +2,7 @@ package com.secureiq.SecureIQ.user.controller;
 
 import com.secureiq.SecureIQ.common.dto.ApiResponse;
 import com.secureiq.SecureIQ.user.dto.UserCreateRequest;
+import com.secureiq.SecureIQ.user.dto.UserPatchRequest;
 import com.secureiq.SecureIQ.user.dto.UserResponse;
 import com.secureiq.SecureIQ.user.dto.UserStatusUpdateRequest;
 import com.secureiq.SecureIQ.user.dto.UserUpdateRequest;
@@ -60,10 +61,18 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update an existing user", description = "Update user details by ID. Access limited to ADMIN only.")
+    @PreAuthorize("hasRole('ADMIN') or authentication.principal.id == #id")
+    @Operation(summary = "Update an existing user", description = "Update user details by ID. Admin can update anyone, others can only update their own profile.")
     public ApiResponse<UserResponse> update(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
         UserResponse response = userService.update(id, request);
+        return ApiResponse.success(response, "User updated successfully");
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or authentication.principal.id == #id")
+    @Operation(summary = "Partially update an existing user", description = "Partially update user details by ID. Admin can update anyone, others can only update their own profile.")
+    public ApiResponse<UserResponse> patch(@PathVariable Long id, @Valid @RequestBody UserPatchRequest request) {
+        UserResponse response = userService.patch(id, request);
         return ApiResponse.success(response, "User updated successfully");
     }
 

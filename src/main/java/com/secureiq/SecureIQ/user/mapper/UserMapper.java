@@ -1,6 +1,7 @@
 package com.secureiq.SecureIQ.user.mapper;
 
 import com.secureiq.SecureIQ.user.dto.UserCreateRequest;
+import com.secureiq.SecureIQ.user.dto.UserPatchRequest;
 import com.secureiq.SecureIQ.user.dto.UserResponse;
 import com.secureiq.SecureIQ.user.dto.UserUpdateRequest;
 import com.secureiq.SecureIQ.user.model.Status;
@@ -45,5 +46,32 @@ public class UserMapper {
         user.setRole(request.getRole());
         user.setStatus(request.getStatus());
         user.setProfileImage(request.getProfileImage());
+    }
+
+    public void patchEntity(UserPatchRequest request, User user) {
+        if (request == null || user == null) {
+            return;
+        }
+        if (request.getFirstName() != null) {
+            user.setFirstName(request.getFirstName());
+        }
+        if (request.getLastName() != null) {
+            user.setLastName(request.getLastName());
+        }
+        if (request.getEmail() != null) {
+            user.setEmail(request.getEmail());
+        }
+        if (request.getPhoneNumber() != null) {
+            user.setPhoneNumber(request.getPhoneNumber());
+        }
+        if (request.getRole() != null) {
+            user.setRole(request.getRole());
+        }
+        if (request.getStatus() != null) {
+            user.setStatus(request.getStatus());
+        }
+        if (request.getProfileImage() != null) {
+            user.setProfileImage(request.getProfileImage());
+        }
     }
 }

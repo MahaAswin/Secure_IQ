@@ -98,11 +98,13 @@ public class AuthServiceImpl implements AuthService {
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new NotFoundException("User not found"));
+        user.setLastLogin(java.time.LocalDateTime.now());
+        User savedUser = userRepository.save(user);
 
         return AuthResponse.builder()
                 .token(token)
                 .tokenType("Bearer")
-                .user(UserResponse.fromEntity(user))
+                .user(UserResponse.fromEntity(savedUser))
                 .build();
     }
 

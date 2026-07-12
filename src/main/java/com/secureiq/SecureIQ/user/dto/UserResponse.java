@@ -23,6 +23,7 @@ public class UserResponse {
     private String profileImage;
     private String createdAt;
     private String updatedAt;
+    private String lastLogin;
 
     public static UserResponse fromEntity(User user) {
         if (user == null) {
@@ -39,6 +40,7 @@ public class UserResponse {
                 .profileImage(user.getProfileImage())
                 .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
                 .updatedAt(user.getUpdatedAt() != null ? user.getUpdatedAt().toString() : null)
+                .lastLogin(user.getLastLogin() != null ? user.getLastLogin().toString() : null)
                 .build();
     }
 }

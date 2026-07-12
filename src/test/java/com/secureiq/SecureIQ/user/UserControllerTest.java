@@ -380,5 +380,83 @@ public class UserControllerTest {
         org.junit.jupiter.api.Assertions.assertEquals("Bob", registered.getFirstName());
         org.junit.jupiter.api.Assertions.assertEquals("Smith", registered.getLastName());
     }
+
+    @Test
+    public void testUpdateOwnProfile_Success() throws Exception {
+        UserUpdateRequest request = UserUpdateRequest.builder()
+                .firstName("FacultyNewName")
+                .lastName("User")
+                .email("faculty@secureiq.com")
+                .role(Role.FACULTY)
+                .status(Status.ACTIVE)
+                .build();
+
+        mockMvc.perform(put("/api/v1/users/" + facultyUser.getId())
+                        .header("Authorization", facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.firstName", is("FacultyNewName")));
+    }
+
+    @Test
+    public void testUpdateOwnProfile_RoleStatusChangeRejected() throws Exception {
+        UserUpdateRequest request = UserUpdateRequest.builder()
+                .firstName("FacultyNewName")
+                .lastName("User")
+                .email("faculty@secureiq.com")
+                .role(Role.ADMIN)
+                .status(Status.ACTIVE)
+                .build();
+
+        mockMvc.perform(put("/api/v1/users/" + facultyUser.getId())
+                        .header("Authorization", facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    public void testPatchOwnProfile_Success() throws Exception {
+        com.secureiq.SecureIQ.user.dto.UserPatchRequest request = com.secureiq.SecureIQ.user.dto.UserPatchRequest.builder()
+                .firstName("FacultyPatched")
+                .build();
+
+        mockMvc.perform(patch("/api/v1/users/" + facultyUser.getId())
+                        .header("Authorization", facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.firstName", is("FacultyPatched")))
+                .andExpect(jsonPath("$.data.email", is("faculty@secureiq.com")));
+    }
+
+    @Test
+    public void testPatchOwnProfile_RoleStatusChangeRejected() throws Exception {
+        com.secureiq.SecureIQ.user.dto.UserPatchRequest request = com.secureiq.SecureIQ.user.dto.UserPatchRequest.builder()
+                .role(Role.ADMIN)
+                .build();
+
+        mockMvc.perform(patch("/api/v1/users/" + facultyUser.getId())
+                        .header("Authorization", facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    public void testPatchOtherProfile_Forbidden() throws Exception {
+        com.secureiq.SecureIQ.user.dto.UserPatchRequest request = com.secureiq.SecureIQ.user.dto.UserPatchRequest.builder()
+                .firstName("Blocked")
+                .build();
+
+        mockMvc.perform(patch("/api/v1/users/" + studentUser.getId())
+                        .header("Authorization", facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
 }
 
