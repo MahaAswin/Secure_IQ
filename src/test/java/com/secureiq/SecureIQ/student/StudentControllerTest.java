@@ -5,6 +5,12 @@ import com.secureiq.SecureIQ.security.jwt.JwtTokenProvider;
 import com.secureiq.SecureIQ.student.dto.*;
 import com.secureiq.SecureIQ.student.model.*;
 import com.secureiq.SecureIQ.student.repository.*;
+import com.secureiq.SecureIQ.exam.model.*;
+import com.secureiq.SecureIQ.exam.repository.ExamRepository;
+import com.secureiq.SecureIQ.subject.model.Subject;
+import com.secureiq.SecureIQ.subject.repository.SubjectRepository;
+import com.secureiq.SecureIQ.faculty.model.Faculty;
+import com.secureiq.SecureIQ.faculty.repository.FacultyRepository;
 import com.secureiq.SecureIQ.department.model.Department;
 import com.secureiq.SecureIQ.department.repository.DepartmentRepository;
 import com.secureiq.SecureIQ.user.model.Role;
@@ -24,6 +30,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -53,6 +60,12 @@ public class StudentControllerTest {
 
     @Autowired
     private ExamRepository examRepository;
+
+    @Autowired
+    private SubjectRepository subjectRepository;
+
+    @Autowired
+    private FacultyRepository facultyRepository;
 
     @Autowired
     private NotificationRepository notificationRepository;
@@ -86,6 +99,8 @@ public class StudentControllerTest {
 
     private Student studentProfile;
     private Student otherStudentProfile;
+    private Subject dummySubject;
+    private Faculty dummyFaculty;
 
     @BeforeEach
     public void setup() {
@@ -114,6 +129,25 @@ public class StudentControllerTest {
         // Create Departments
         cseDept = departmentRepository.save(Department.builder().departmentName("Computer Science").departmentCode("CSE").hod(hodUser).build());
         eceDept = departmentRepository.save(Department.builder().departmentName("Electronics").departmentCode("ECE").build());
+
+        dummyFaculty = facultyRepository.save(Faculty.builder()
+                .user(facultyUser)
+                .employeeId("EMP-DUMMY")
+                .designation("Lecturer")
+                .qualification("MS")
+                .specialization("General")
+                .yearsOfExperience(2)
+                .department(cseDept)
+                .joiningDate(LocalDate.now().minusYears(1))
+                .build());
+
+        dummySubject = subjectRepository.save(Subject.builder()
+                .subjectCode("SUB-DUMMY")
+                .subjectName("Dummy Subject")
+                .credits(3)
+                .semester(1)
+                .department(cseDept)
+                .build());
 
         // Create Student profiles
         studentProfile = studentRepository.save(Student.builder()
@@ -161,15 +195,18 @@ public class StudentControllerTest {
     private void cleanupAll() {
         jdbcTemplate.execute("ALTER TABLE departments DROP COLUMN IF EXISTS name CASCADE");
         jdbcTemplate.execute("ALTER TABLE departments DROP COLUMN IF EXISTS code CASCADE");
+        jdbcTemplate.execute("ALTER TABLE exams DROP COLUMN IF EXISTS title CASCADE");
+        jdbcTemplate.execute("ALTER TABLE exams DROP COLUMN IF EXISTS scheduled_at CASCADE");
         
-        recentActivityRepository.deleteAllInBatch();
-        notificationRepository.deleteAllInBatch();
-        examRepository.deleteAllInBatch();
-        
+        jdbcTemplate.execute("DELETE FROM activities");
+        jdbcTemplate.execute("DELETE FROM notifications");
+        jdbcTemplate.execute("DELETE FROM exams");
         jdbcTemplate.execute("DELETE FROM students");
+        jdbcTemplate.execute("DELETE FROM subject_faculty");
+        jdbcTemplate.execute("DELETE FROM faculty_subjects");
+        jdbcTemplate.execute("DELETE FROM subjects");
+        jdbcTemplate.execute("DELETE FROM faculties");
         jdbcTemplate.execute("DELETE FROM departments");
-        
-        // Since User is also soft-deletable, physically delete them in tests
         jdbcTemplate.execute("DELETE FROM users");
     }
 
@@ -347,11 +384,40 @@ public class StudentControllerTest {
 
     @Test
     public void testStudentDashboardAndProfileApis() throws Exception {
-        // Prepopulate metrics data
         // Upcoming exam
-        examRepository.save(Exam.builder().title("Final Term Paper 1").scheduledAt(LocalDateTime.now().plusDays(2)).department(cseDept).build());
+        examRepository.save(Exam.builder()
+                .examCode("EX-UPCOMING")
+                .examTitle("Final Term Paper 1")
+                .subject(dummySubject)
+                .faculty(dummyFaculty)
+                .semester(1)
+                .examType(ExamType.END_SEMESTER)
+                .totalMarks(100)
+                .passingMarks(40)
+                .durationMinutes(180)
+                .scheduledDate(LocalDate.now().plusDays(2))
+                .startTime(LocalTime.of(9, 0))
+                .endTime(LocalTime.of(12, 0))
+                .status(ExamStatus.PUBLISHED)
+                .department(cseDept)
+                .build());
         // Completed exam
-        examRepository.save(Exam.builder().title("Mid Term Paper 1").scheduledAt(LocalDateTime.now().minusDays(2)).department(cseDept).build());
+        examRepository.save(Exam.builder()
+                .examCode("EX-COMPLETED")
+                .examTitle("Mid Term Paper 1")
+                .subject(dummySubject)
+                .faculty(dummyFaculty)
+                .semester(1)
+                .examType(ExamType.MID_SEMESTER)
+                .totalMarks(100)
+                .passingMarks(40)
+                .durationMinutes(180)
+                .scheduledDate(LocalDate.now().minusDays(2))
+                .startTime(LocalTime.of(9, 0))
+                .endTime(LocalTime.of(12, 0))
+                .status(ExamStatus.COMPLETED)
+                .department(cseDept)
+                .build());
         // Notification
         notificationRepository.save(Notification.builder().title("Holiday Notice").message("Tomorrow is a holiday").studentId(studentProfile.getId()).read(false).build());
         notificationRepository.save(Notification.builder().title("Fee Reminder").message("Pay tuition fees").studentId(studentProfile.getId()).read(true).build()); // Read notification

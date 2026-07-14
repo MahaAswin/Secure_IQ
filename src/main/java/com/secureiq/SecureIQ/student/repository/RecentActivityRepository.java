@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface RecentActivityRepository extends JpaRepository<RecentActivity, Long> {
     List<RecentActivity> findTop5ByStudentIdOrderByTimestampDesc(Long studentId);
+    List<RecentActivity> findTop5ByStudentIdInOrderByTimestampDesc(java.util.Collection<Long> studentIds);
 }

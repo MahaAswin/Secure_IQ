@@ -8,6 +8,7 @@ import com.secureiq.SecureIQ.student.dto.*;
 import com.secureiq.SecureIQ.student.mapper.StudentMapper;
 import com.secureiq.SecureIQ.student.model.*;
 import com.secureiq.SecureIQ.student.repository.*;
+import com.secureiq.SecureIQ.exam.repository.ExamRepository;
 import com.secureiq.SecureIQ.department.model.Department;
 import com.secureiq.SecureIQ.department.repository.DepartmentRepository;
 import com.secureiq.SecureIQ.user.model.User;
@@ -186,11 +187,11 @@ public class StudentServiceImpl implements StudentService {
         long upcomingExams = 0;
         long completedExams = 0;
         if (student.getDepartment() != null) {
-            upcomingExams = examRepository.countByDepartmentIdAndScheduledAtAfter(
-                    student.getDepartment().getId(), java.time.LocalDateTime.now()
+            upcomingExams = examRepository.countByDepartmentIdAndScheduledDateAfter(
+                    student.getDepartment().getId(), java.time.LocalDate.now()
             );
-            completedExams = examRepository.countByDepartmentIdAndScheduledAtBefore(
-                    student.getDepartment().getId(), java.time.LocalDateTime.now()
+            completedExams = examRepository.countByDepartmentIdAndScheduledDateBefore(
+                    student.getDepartment().getId(), java.time.LocalDate.now()
             );
         }
 

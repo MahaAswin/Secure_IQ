@@ -145,9 +145,19 @@ public class SubjectControllerTest {
     }
 
     private void cleanupAll() {
-        jdbcTemplate.execute("DELETE FROM subject_faculty");
-        jdbcTemplate.execute("DELETE FROM subjects");
+        jdbcTemplate.execute("ALTER TABLE departments DROP COLUMN IF EXISTS name CASCADE");
+        jdbcTemplate.execute("ALTER TABLE departments DROP COLUMN IF EXISTS code CASCADE");
+        jdbcTemplate.execute("ALTER TABLE exams DROP COLUMN IF EXISTS title CASCADE");
+        jdbcTemplate.execute("ALTER TABLE exams DROP COLUMN IF EXISTS scheduled_at CASCADE");
+
+        jdbcTemplate.execute("DELETE FROM activities");
+        jdbcTemplate.execute("DELETE FROM notifications");
+        jdbcTemplate.execute("DELETE FROM exams");
         jdbcTemplate.execute("DELETE FROM students");
+        jdbcTemplate.execute("DELETE FROM subject_faculty");
+        jdbcTemplate.execute("DELETE FROM faculty_subjects");
+        jdbcTemplate.execute("DELETE FROM subjects");
+        jdbcTemplate.execute("DELETE FROM faculties");
         jdbcTemplate.execute("DELETE FROM departments");
         jdbcTemplate.execute("DELETE FROM users");
     }

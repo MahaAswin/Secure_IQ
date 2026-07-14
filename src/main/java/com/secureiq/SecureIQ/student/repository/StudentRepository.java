@@ -16,6 +16,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     boolean existsByRegisterNumber(String registerNumber);
     boolean existsByRollNumber(String rollNumber);
     long countByDepartmentId(Long departmentId);
+    java.util.List<Student> findAllByDepartmentId(Long departmentId);
+    java.util.List<Student> findByDepartmentIdInAndSemesterIn(java.util.Collection<Long> departmentIds, java.util.Collection<Integer> semesters);
 
     @Query("SELECT s FROM Student s LEFT JOIN s.user u WHERE " +
            "(:name IS NULL OR :name = '' OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :name, '%')) OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
