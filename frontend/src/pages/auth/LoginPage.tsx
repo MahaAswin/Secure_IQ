@@ -43,7 +43,7 @@ export function LoginPage() {
   const [isRegister, setIsRegister] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.STUDENT);
 
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting }, reset } = useForm<AuthFormData>({
+  const { register, handleSubmit, setValue, getValues, formState: { errors, isSubmitting }, reset } = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
     defaultValues: { role: UserRole.STUDENT },
   });
@@ -52,9 +52,13 @@ export function LoginPage() {
     setSelectedRole(role);
     setValue('role', role);
     if (!isRegister) {
-      const creds = DEMO_CREDENTIALS[role];
-      setValue('email', creds.email);
-      setValue('password', creds.password);
+      const currentEmail = getValues('email');
+      const isDemoEmail = Object.values(DEMO_CREDENTIALS).some(c => c.email === currentEmail);
+      if (!currentEmail || currentEmail.trim() === '' || isDemoEmail) {
+        const creds = DEMO_CREDENTIALS[role];
+        setValue('email', creds.email);
+        setValue('password', creds.password);
+      }
     }
   };
 
@@ -65,22 +69,27 @@ export function LoginPage() {
           toast.error('Name is required for registration');
           return;
         }
-        await registerUser({
+        const user = await registerUser({
           name: data.name,
           email: data.email,
           password: data.password,
           role: data.role,
         });
-        toast.success(`Account registered successfully as ${ROLE_LABELS[data.role]}!`);
+        if (user) {
+          toast.success(`Account registered successfully as ${ROLE_LABELS[user.role]}!`);
+          navigate(ROLE_HOME[user.role]);
+        }
       } else {
-        await login({
+        const user = await login({
           email: data.email,
           password: data.password,
           role: data.role,
         });
-        toast.success(`Welcome back! Logged in as ${ROLE_LABELS[data.role]}`);
+        if (user) {
+          toast.success(`Welcome back! Logged in as ${ROLE_LABELS[user.role]}`);
+          navigate(ROLE_HOME[user.role]);
+        }
       }
-      navigate(ROLE_HOME[data.role]);
     } catch (err: any) {
       const errMsg = err.response?.data?.message || 'Authentication failed. Please check credentials.';
       toast.error(errMsg);
@@ -190,7 +199,7 @@ export function LoginPage() {
             Already have an account?{' '}
             <button
               type="button"
-              onClick={() => { setIsRegister(false); reset(); }}
+              onClick={() => { setIsRegister(false); reset(); setSelectedRole(UserRole.STUDENT); }}
               className="text-primary font-semibold hover:underline focus:outline-none"
             >
               Sign In
@@ -201,7 +210,7 @@ export function LoginPage() {
             New to SecureIQ?{' '}
             <button
               type="button"
-              onClick={() => { setIsRegister(true); reset(); }}
+              onClick={() => { setIsRegister(true); reset(); setSelectedRole(UserRole.STUDENT); }}
               className="text-primary font-semibold hover:underline focus:outline-none"
             >
               Create an account

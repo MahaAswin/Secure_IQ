@@ -12,8 +12,8 @@ export interface RegisterData {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<void>;
-  registerUser: (data: RegisterData) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<User | null>;
+  registerUser: (data: RegisterData) => Promise<User | null>;
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
 }
@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: true,
         isLoading: false,
       });
+      return user;
     } catch (error) {
       setState((prev) => ({ ...prev, isLoading: false }));
       throw error;
@@ -105,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: true,
         isLoading: false,
       });
+      return user;
     } catch (error) {
       setState((prev) => ({ ...prev, isLoading: false }));
       throw error;

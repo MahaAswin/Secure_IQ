@@ -198,6 +198,14 @@ public class StudentControllerTest {
         jdbcTemplate.execute("ALTER TABLE exams DROP COLUMN IF EXISTS title CASCADE");
         jdbcTemplate.execute("ALTER TABLE exams DROP COLUMN IF EXISTS scheduled_at CASCADE");
         
+        jdbcTemplate.execute("DELETE FROM browser_sessions");
+        jdbcTemplate.execute("DELETE FROM violations");
+        jdbcTemplate.execute("DELETE FROM student_exam_attempts");
+        jdbcTemplate.execute("DELETE FROM session_students");
+        jdbcTemplate.execute("DELETE FROM exam_sessions");
+        jdbcTemplate.execute("DELETE FROM question_options");
+        jdbcTemplate.execute("DELETE FROM questions");
+        jdbcTemplate.execute("DELETE FROM question_banks");
         jdbcTemplate.execute("DELETE FROM activities");
         jdbcTemplate.execute("DELETE FROM notifications");
         jdbcTemplate.execute("DELETE FROM exams");
