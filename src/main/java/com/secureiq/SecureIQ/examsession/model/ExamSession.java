@@ -9,7 +9,9 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -25,6 +27,8 @@ import java.util.Set;
 @SQLDelete(sql = "UPDATE exam_sessions SET deleted = true, session_code = concat(session_code, '_deleted_', cast(extract(epoch from now()) as varchar)) WHERE id = ?")
 @SQLRestriction("deleted = false")
 public class ExamSession extends BaseEntity {
+
+    public static final ZoneId INSTITUTION_ZONE = ZoneId.of("Asia/Kolkata");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -80,4 +84,24 @@ public class ExamSession extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean deleted = false;
+
+    public Instant getAuthoritativeStartInstant() {
+        if (this.startDateTime != null) {
+            return this.startDateTime.atZone(INSTITUTION_ZONE).toInstant();
+        }
+        if (this.exam != null) {
+            return this.exam.getAuthoritativeStartInstant();
+        }
+        return null;
+    }
+
+    public Instant getAuthoritativeEndInstant() {
+        if (this.endDateTime != null) {
+            return this.endDateTime.atZone(INSTITUTION_ZONE).toInstant();
+        }
+        if (this.exam != null) {
+            return this.exam.getAuthoritativeEndInstant();
+        }
+        return null;
+    }
 }

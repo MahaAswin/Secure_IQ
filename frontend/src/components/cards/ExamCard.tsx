@@ -31,9 +31,34 @@ const statusLabelMap: Record<ExamStatus, string> = {
 };
 
 export function ExamCard({ exam, role = 'student', onJoin, onView, onMonitor, delay = 0, className }: ExamCardProps) {
-  const isLive = exam.status === ExamStatus.LIVE;
-  const isUpcoming = exam.status === ExamStatus.UPCOMING;
-  const isCompleted = exam.status === ExamStatus.COMPLETED;
+  const scheduleState = (exam.scheduleState || (
+    exam.status === ExamStatus.LIVE ? 'AVAILABLE' :
+    exam.status === ExamStatus.COMPLETED ? 'COMPLETED' :
+    exam.status === ExamStatus.CANCELLED ? 'CANCELLED' : 'UPCOMING'
+  )).toUpperCase();
+
+  const isAvailable = scheduleState === 'AVAILABLE';
+  const isInProgress = scheduleState === 'IN_PROGRESS';
+  const isLive = isAvailable || isInProgress;
+  const isUpcoming = scheduleState === 'UPCOMING';
+  const isCompleted = scheduleState === 'COMPLETED';
+  const isExpired = scheduleState === 'EXPIRED';
+  const isCancelled = scheduleState === 'CANCELLED';
+
+  const badgeVariant: 'live' | 'upcoming' | 'completed' | 'cancelled' =
+    isLive ? 'live' :
+    isUpcoming ? 'upcoming' :
+    isCompleted ? 'completed' : 'cancelled';
+
+  const badgeLabel =
+    isAvailable ? 'Available' :
+    isInProgress ? 'In Progress' :
+    isUpcoming ? 'Upcoming' :
+    isCompleted ? 'Completed' :
+    isExpired ? 'Expired' :
+    isCancelled ? 'Cancelled' : scheduleState;
+
+  const displayDateTime = exam.scheduledStart || (exam.scheduledDate && exam.startTime ? `${exam.scheduledDate}T${exam.startTime}` : exam.startTime);
 
   return (
     <motion.div
@@ -42,13 +67,13 @@ export function ExamCard({ exam, role = 'student', onJoin, onView, onMonitor, de
       transition={{ duration: 0.4, delay }}
       className={cn(
         'rounded-xl border bg-card shadow-soft overflow-hidden transition-all duration-200 hover:shadow-card',
-        isLive ? 'border-danger/30' : 'border-border',
+        isLive ? 'border-success/40' : 'border-border',
         className
       )}
     >
       {/* Top accent */}
       {isLive && (
-        <div className="h-1 bg-gradient-to-r from-danger to-danger-600" />
+        <div className="h-1 bg-gradient-to-r from-success to-primary" />
       )}
       {isUpcoming && (
         <div className="h-1 bg-gradient-to-r from-primary to-secondary" />
@@ -60,8 +85,8 @@ export function ExamCard({ exam, role = 'student', onJoin, onView, onMonitor, de
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-mono text-muted-foreground">{exam.code}</span>
-              <Badge variant={statusVariantMap[exam.status]} dot pulse={isLive}>
-                {statusLabelMap[exam.status]}
+              <Badge variant={badgeVariant} dot pulse={isLive}>
+                {badgeLabel}
               </Badge>
             </div>
             <h3 className="font-display font-semibold text-foreground text-base line-clamp-1">
@@ -80,7 +105,7 @@ export function ExamCard({ exam, role = 'student', onJoin, onView, onMonitor, de
         <div className="grid grid-cols-2 gap-2 mb-4">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-            <span>{formatDateTime(exam.startTime)}</span>
+            <span>{formatDateTime(displayDateTime)}</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Clock className="h-3.5 w-3.5 flex-shrink-0" />
@@ -95,6 +120,13 @@ export function ExamCard({ exam, role = 'student', onJoin, onView, onMonitor, de
             <span>{exam.enrolledCount}/{exam.maxStudents} students</span>
           </div>
         </div>
+
+        {/* Schedule note / Access message */}
+        {exam.accessMessage && (isUpcoming || isExpired || isCancelled) && (
+          <div className="p-2 mb-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+            {exam.accessMessage}
+          </div>
+        )}
 
         {/* Marks */}
         <div className="flex items-center gap-2 mb-4">
@@ -118,15 +150,32 @@ export function ExamCard({ exam, role = 'student', onJoin, onView, onMonitor, de
         <div className="flex gap-2">
           {role === 'student' ? (
             <>
-              {isLive && onJoin && (
+              {isAvailable && onJoin && (
                 <Button variant="primary" size="sm" className="flex-1" onClick={() => onJoin(exam)}>
-                  Join Exam
+                  Start Exam
+                </Button>
+              )}
+              {isInProgress && onJoin && (
+                <Button variant="primary" size="sm" className="flex-1" onClick={() => onJoin(exam)}>
+                  Resume Exam
                 </Button>
               )}
               {(isUpcoming || isCompleted) && onView && (
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => onView(exam)}>
                   {isCompleted ? 'View Result' : 'View Details'}
                 </Button>
+              )}
+              {(isExpired || isCancelled) && (
+                <>
+                  <Button variant="outline" size="sm" disabled className="flex-1 opacity-60">
+                    {isExpired ? 'Expired' : 'Cancelled'}
+                  </Button>
+                  {onView && (
+                    <Button variant="ghost" size="sm" onClick={() => onView(exam)}>
+                      Details
+                    </Button>
+                  )}
+                </>
               )}
             </>
           ) : (

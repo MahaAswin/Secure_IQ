@@ -55,6 +55,8 @@ public class ExamUpdateRequest {
     @FutureOrPresent(message = "Scheduled date cannot be in the past")
     private LocalDate scheduledDate;
 
+    private LocalDate scheduledEndDate;
+
     @NotNull(message = "Start time is required")
     private LocalTime startTime;
 

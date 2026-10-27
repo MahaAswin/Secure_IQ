@@ -29,6 +29,9 @@ public class StudentExamAttemptResponse {
     private Integer browserWarnings;
     private Integer aiWarnings;
     private Integer totalViolations;
+    private Long remainingSeconds;
+    private String serverTime;
+    private String effectiveDeadline;
     private String createdAt;
     private String updatedAt;
 }

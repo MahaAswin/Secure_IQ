@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> {
@@ -18,6 +19,8 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> 
     boolean existsBySessionCode(String sessionCode);
 
     boolean existsBySessionCodeAndIdNot(String sessionCode, Long id);
+
+    java.util.Optional<ExamSession> findBySessionCode(String sessionCode);
 
     @Query("SELECT COUNT(es) > 0 FROM ExamSession es WHERE " +
            "es.venue = :venue AND es.id <> :id AND es.status <> 'CANCELLED' AND " +
@@ -57,12 +60,15 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> 
         Pageable pageable
     );
 
-    @Query("SELECT es FROM ExamSession es JOIN es.students s WHERE " +
-           "s.id = :studentId AND " +
+    List<ExamSession> findAllByExamId(Long examId);
+
+    Optional<ExamSession> findFirstByExamId(Long examId);
+
+    @Query("SELECT DISTINCT es FROM ExamSession es LEFT JOIN es.students s WHERE " +
+           "(s.id = :studentId OR (es.exam.department.id = :departmentId)) AND " +
            "(:sessionCode IS NULL OR :sessionCode = '' OR LOWER(es.sessionCode) LIKE LOWER(CONCAT('%', :sessionCode, '%'))) AND " +
            "(:examId IS NULL OR es.exam.id = :examId) AND " +
            "(:facultyId IS NULL OR es.faculty.id = :facultyId) AND " +
-           "(:departmentId IS NULL OR es.exam.department.id = :departmentId) AND " +
            "(:status IS NULL OR es.status = :status)")
     Page<ExamSession> findAllFilteredForStudent(
         @Param("studentId") Long studentId,

@@ -10,7 +10,10 @@ export enum UserRole {
 export enum ExamStatus {
   UPCOMING = 'upcoming',
   LIVE = 'live',
+  AVAILABLE = 'available',
+  IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
+  EXPIRED = 'expired',
   CANCELLED = 'cancelled',
 }
 
@@ -83,10 +86,21 @@ export interface Exam {
   department: string;
   startTime: string;
   endTime: string;
+  scheduledDate?: string;
+  scheduledEndDate?: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  serverTime?: string;
+  scheduleState?: 'UPCOMING' | 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED' | 'EXPIRED' | 'CANCELLED' | 'UNAUTHORIZED' | 'DRAFT' | string;
+  canStart?: boolean;
+  accessMessage?: string;
+  attemptStatus?: string;
+  attemptId?: number;
+  remainingSeconds?: number;
   duration: number; // in minutes
   totalMarks: number;
   passingMarks: number;
-  status: ExamStatus;
+  status: ExamStatus | string;
   venue: string;
   enrolledCount: number;
   maxStudents: number;

@@ -13,6 +13,7 @@ interface StatCardProps {
   iconColor?: string;
   iconBg?: string;
   format?: 'number' | 'percentage' | 'currency' | 'raw';
+  subtext?: React.ReactNode;
   className?: string;
   delay?: number;
   onClick?: () => void;
@@ -27,6 +28,7 @@ export function StatCard({
   iconColor = 'text-primary',
   iconBg = 'bg-primary/10',
   format = 'raw',
+  subtext,
   className,
   delay = 0,
   onClick,
@@ -75,6 +77,11 @@ export function StatCard({
               {changeLabel && (
                 <span className="text-xs text-muted-foreground">{changeLabel}</span>
               )}
+            </div>
+          )}
+          {subtext && (
+            <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+              {subtext}
             </div>
           )}
         </div>

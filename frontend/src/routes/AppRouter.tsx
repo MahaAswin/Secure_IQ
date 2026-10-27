@@ -19,6 +19,8 @@ import { JoinExamPage } from '@/pages/student/JoinExamPage';
 import { FacultyDashboard } from '@/pages/faculty/FacultyDashboard';
 import { FacultyMonitoringPage } from '@/pages/faculty/FacultyMonitoringPage';
 import { CreateExamPage } from '@/pages/faculty/CreateExamPage';
+import { QuestionBankPage } from '@/pages/faculty/QuestionBankPage';
+import { ExamDetailPage } from '@/pages/shared/ExamDetailPage';
 import { HODDashboard } from '@/pages/hod/HODDashboard';
 import { AdminDashboard } from '@/pages/admin/AdminDashboard';
 import { AnalyticsPage } from '@/pages/analytics/AnalyticsPage';
@@ -68,6 +70,7 @@ export function AppRouter() {
         >
           <Route path={ROUTES.STUDENT.DASHBOARD} element={<StudentDashboard />} />
           <Route path={ROUTES.STUDENT.EXAMS} element={<StudentExamsPage />} />
+          <Route path={ROUTES.STUDENT.EXAM_DETAIL} element={<ExamDetailPage />} />
           <Route path={ROUTES.STUDENT.RESULTS} element={<StudentResultsPage />} />
           <Route path={ROUTES.STUDENT.JOIN_EXAM} element={<JoinExamPage />} />
         </Route>
@@ -82,7 +85,9 @@ export function AppRouter() {
         >
           <Route path={ROUTES.FACULTY.DASHBOARD} element={<FacultyDashboard />} />
           <Route path={ROUTES.FACULTY.CREATE_EXAM} element={<CreateExamPage />} />
+          <Route path={ROUTES.FACULTY.EXAM_DETAIL} element={<ExamDetailPage />} />
           <Route path={ROUTES.FACULTY.MONITORING} element={<FacultyMonitoringPage />} />
+          <Route path={ROUTES.FACULTY.QUESTIONS} element={<QuestionBankPage />} />
           <Route path={ROUTES.FACULTY.ANALYTICS} element={<AnalyticsPage />} />
           <Route path={ROUTES.FACULTY.REPORTS} element={<ReportsPage />} />
           <Route path={ROUTES.FACULTY.EXAMS} element={<StudentExamsPage />} />

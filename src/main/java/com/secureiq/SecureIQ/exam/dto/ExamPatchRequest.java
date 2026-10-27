@@ -46,6 +46,8 @@ public class ExamPatchRequest {
     @FutureOrPresent(message = "Scheduled date cannot be in the past")
     private LocalDate scheduledDate;
 
+    private LocalDate scheduledEndDate;
+
     private LocalTime startTime;
 
     private LocalTime endTime;

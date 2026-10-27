@@ -8,6 +8,7 @@ export const ROUTES = {
   STUDENT: {
     DASHBOARD: '/student/dashboard',
     EXAMS: '/student/exams',
+    EXAM_DETAIL: '/student/exams/:examId',
     JOIN_EXAM: '/student/exams/:examId/join',
     RESULTS: '/student/results',
     PROFILE: '/student/profile',
@@ -20,6 +21,7 @@ export const ROUTES = {
     EXAM_DETAIL: '/faculty/exams/:examId',
     MONITORING: '/faculty/monitoring',
     STUDENT_MONITORING: '/faculty/monitoring/:examId',
+    QUESTIONS: '/faculty/questions',
     ANALYTICS: '/faculty/analytics',
     REPORTS: '/faculty/reports',
     REPORT_DETAIL: '/faculty/reports/:examId',

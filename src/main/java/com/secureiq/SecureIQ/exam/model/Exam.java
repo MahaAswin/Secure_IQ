@@ -9,8 +9,10 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "exams")
@@ -22,6 +24,8 @@ import java.time.LocalTime;
 @SQLDelete(sql = "UPDATE exams SET deleted = true, exam_code = concat(exam_code, '_deleted_', cast(extract(epoch from now()) as varchar)) WHERE id = ?")
 @SQLRestriction("deleted = false")
 public class Exam extends BaseEntity {
+
+    public static final ZoneId INSTITUTION_ZONE = ZoneId.of("Asia/Kolkata");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -67,11 +71,20 @@ public class Exam extends BaseEntity {
     @Column(name = "scheduled_date", nullable = false)
     private LocalDate scheduledDate;
 
+    @Column(name = "scheduled_end_date")
+    private LocalDate scheduledEndDate;
+
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
 
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
+
+    @Column(name = "scheduled_start_instant")
+    private Instant scheduledStartInstant;
+
+    @Column(name = "scheduled_end_instant")
+    private Instant scheduledEndInstant;
 
     private String venue;
 
@@ -86,4 +99,40 @@ public class Exam extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean deleted = false;
+
+    @PrePersist
+    @PreUpdate
+    public void syncScheduleInstants() {
+        if (this.scheduledEndDate == null) {
+            this.scheduledEndDate = this.scheduledDate;
+        }
+        if (this.scheduledDate != null && this.startTime != null) {
+            this.scheduledStartInstant = this.scheduledDate.atTime(this.startTime).atZone(INSTITUTION_ZONE).toInstant();
+        }
+        LocalDate effectiveEnd = this.scheduledEndDate != null ? this.scheduledEndDate : this.scheduledDate;
+        if (effectiveEnd != null && this.endTime != null) {
+            this.scheduledEndInstant = effectiveEnd.atTime(this.endTime).atZone(INSTITUTION_ZONE).toInstant();
+        }
+    }
+
+    public Instant getAuthoritativeStartInstant() {
+        if (this.scheduledStartInstant != null) {
+            return this.scheduledStartInstant;
+        }
+        if (this.scheduledDate != null && this.startTime != null) {
+            return this.scheduledDate.atTime(this.startTime).atZone(INSTITUTION_ZONE).toInstant();
+        }
+        return null;
+    }
+
+    public Instant getAuthoritativeEndInstant() {
+        if (this.scheduledEndInstant != null) {
+            return this.scheduledEndInstant;
+        }
+        LocalDate effectiveEnd = this.scheduledEndDate != null ? this.scheduledEndDate : this.scheduledDate;
+        if (effectiveEnd != null && this.endTime != null) {
+            return effectiveEnd.atTime(this.endTime).atZone(INSTITUTION_ZONE).toInstant();
+        }
+        return null;
+    }
 }

@@ -184,7 +184,7 @@ export function LineChartComponent({ data, lines, xKey, height = 250, className,
 // ─── Donut Chart ──────────────────────────────────────────────────────────────
 
 interface DonutChartProps {
-  data: { name: string; value: number }[];
+  data: { name: string; value: number; color?: string }[];
   height?: number;
   className?: string;
   showLegend?: boolean;
@@ -217,8 +217,8 @@ export function DonutChart({
             dataKey="value"
             paddingAngle={2}
           >
-            {data.map((_, i) => (
-              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+            {data.map((entry, i) => (
+              <Cell key={i} fill={entry.color || CHART_COLORS[i % CHART_COLORS.length]} />
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} />

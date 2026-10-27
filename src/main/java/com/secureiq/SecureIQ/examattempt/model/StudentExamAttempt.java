@@ -8,7 +8,9 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "student_exam_attempts", uniqueConstraints = {
@@ -23,6 +25,8 @@ import java.time.LocalDateTime;
 @SQLDelete(sql = "UPDATE student_exam_attempts SET deleted = true, attempt_code = concat(attempt_code, '_deleted_', cast(extract(epoch from now()) as varchar)) WHERE id = ?")
 @SQLRestriction("deleted = false")
 public class StudentExamAttempt extends BaseEntity {
+
+    public static final ZoneId INSTITUTION_ZONE = ZoneId.of("Asia/Kolkata");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -86,4 +90,16 @@ public class StudentExamAttempt extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean deleted = false;
+
+    public Instant getAuthoritativeStartTime() {
+        return this.startTime != null ? this.startTime.atZone(INSTITUTION_ZONE).toInstant() : null;
+    }
+
+    public Instant getAuthoritativeEndTime() {
+        return this.endTime != null ? this.endTime.atZone(INSTITUTION_ZONE).toInstant() : null;
+    }
+
+    public Instant getAuthoritativeSubmittedTime() {
+        return this.submittedTime != null ? this.submittedTime.atZone(INSTITUTION_ZONE).toInstant() : null;
+    }
 }

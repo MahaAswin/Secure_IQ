@@ -25,6 +25,12 @@ public interface StudentExamAttemptRepository extends JpaRepository<StudentExamA
 
     List<StudentExamAttempt> findAllByExamSessionId(Long sessionId);
 
+    @Query("SELECT sea FROM StudentExamAttempt sea WHERE sea.student.id = :studentId AND sea.examSession.exam.id = :examId ORDER BY sea.createdAt DESC")
+    List<StudentExamAttempt> findAllByStudentIdAndExamId(@Param("studentId") Long studentId, @Param("examId") Long examId);
+
+    @Query("SELECT sea FROM StudentExamAttempt sea WHERE sea.student.id = :studentId AND sea.examSession.exam.id = :examId ORDER BY sea.createdAt DESC")
+    Optional<StudentExamAttempt> findFirstByStudentIdAndExamId(@Param("studentId") Long studentId, @Param("examId") Long examId);
+
     @Query("SELECT sea FROM StudentExamAttempt sea WHERE " +
            "(:attemptCode IS NULL OR :attemptCode = '' OR LOWER(sea.attemptCode) LIKE LOWER(CONCAT('%', :attemptCode, '%'))) AND " +
            "(:studentId IS NULL OR sea.student.id = :studentId) AND " +

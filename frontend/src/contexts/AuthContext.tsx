@@ -54,13 +54,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading: false,
   });
 
-  // Sync from storage on mount
+  // Sync from storage and fetch current profile from backend on mount
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
     const userRaw = safeJsonParse<any>(localStorage.getItem(STORAGE_KEYS.USER), null);
-    if (token && userRaw) {
-      const user = normalizeUser(userRaw);
-      setState((prev) => ({ ...prev, user, isAuthenticated: true }));
+    if (token) {
+      if (userRaw) {
+        const user = normalizeUser(userRaw);
+        setState((prev) => ({ ...prev, user, isAuthenticated: true }));
+      }
+      api.get('/v1/auth/me')
+        .then((res) => {
+          if (res.data?.data) {
+            const freshUser = normalizeUser(res.data.data);
+            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(freshUser));
+            setState((prev) => ({ ...prev, user: freshUser, isAuthenticated: true }));
+          }
+        })
+        .catch(() => {
+          // Token might be invalid or network unreachable
+        });
     }
   }, []);
 
@@ -114,6 +127,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Release any lingering media stream tracks upon logout
+    if (typeof window !== 'undefined' && (window as any).__secureIqActiveMediaStream) {
+      try {
+        const stream = (window as any).__secureIqActiveMediaStream as MediaStream;
+        stream.getTracks().forEach((track) => {
+          track.onended = null;
+          track.stop();
+        });
+        (window as any).__secureIqActiveMediaStream = null;
+      } catch {}
+    }
+
     localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);

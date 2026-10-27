@@ -11,6 +11,8 @@ import com.secureiq.SecureIQ.faculty.model.Faculty;
 import com.secureiq.SecureIQ.subject.model.Subject;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+
 @Component
 public class ExamMapper {
 
@@ -65,8 +67,11 @@ public class ExamMapper {
                 .durationMinutes(exam.getDurationMinutes())
                 .passingMarks(exam.getPassingMarks())
                 .scheduledDate(exam.getScheduledDate())
+                .scheduledEndDate(exam.getScheduledEndDate() != null ? exam.getScheduledEndDate() : exam.getScheduledDate())
                 .startTime(exam.getStartTime())
                 .endTime(exam.getEndTime())
+                .scheduledStart(exam.getAuthoritativeStartInstant())
+                .scheduledEnd(exam.getAuthoritativeEndInstant())
                 .venue(exam.getVenue())
                 .instructions(exam.getInstructions())
                 .status(exam.getStatus())
@@ -80,7 +85,9 @@ public class ExamMapper {
             return null;
         }
 
-        return Exam.builder()
+        LocalDate endDate = request.getScheduledEndDate() != null ? request.getScheduledEndDate() : request.getScheduledDate();
+
+        Exam exam = Exam.builder()
                 .examCode(request.getExamCode())
                 .examTitle(request.getExamTitle())
                 .description(request.getDescription())
@@ -93,6 +100,7 @@ public class ExamMapper {
                 .durationMinutes(request.getDurationMinutes())
                 .passingMarks(request.getPassingMarks())
                 .scheduledDate(request.getScheduledDate())
+                .scheduledEndDate(endDate)
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .venue(request.getVenue())
@@ -100,6 +108,8 @@ public class ExamMapper {
                 .status(request.getStatus() != null ? request.getStatus() : ExamStatus.DRAFT)
                 .deleted(false)
                 .build();
+        exam.syncScheduleInstants();
+        return exam;
     }
 
     public void updateEntity(ExamUpdateRequest request, Subject subject, Faculty faculty, Department department, Exam exam) {
@@ -118,11 +128,13 @@ public class ExamMapper {
         exam.setDurationMinutes(request.getDurationMinutes());
         exam.setPassingMarks(request.getPassingMarks());
         exam.setScheduledDate(request.getScheduledDate());
+        exam.setScheduledEndDate(request.getScheduledEndDate() != null ? request.getScheduledEndDate() : request.getScheduledDate());
         exam.setStartTime(request.getStartTime());
         exam.setEndTime(request.getEndTime());
         exam.setVenue(request.getVenue());
         exam.setInstructions(request.getInstructions());
         exam.setStatus(request.getStatus());
+        exam.syncScheduleInstants();
     }
 
     public void patchEntity(ExamPatchRequest request, Subject subject, Faculty faculty, Department department, Exam exam) {
@@ -165,6 +177,11 @@ public class ExamMapper {
         if (request.getScheduledDate() != null) {
             exam.setScheduledDate(request.getScheduledDate());
         }
+        if (request.getScheduledEndDate() != null) {
+            exam.setScheduledEndDate(request.getScheduledEndDate());
+        } else if (exam.getScheduledEndDate() == null) {
+            exam.setScheduledEndDate(exam.getScheduledDate());
+        }
         if (request.getStartTime() != null) {
             exam.setStartTime(request.getStartTime());
         }
@@ -180,5 +197,6 @@ public class ExamMapper {
         if (request.getStatus() != null) {
             exam.setStatus(request.getStatus());
         }
+        exam.syncScheduleInstants();
     }
 }

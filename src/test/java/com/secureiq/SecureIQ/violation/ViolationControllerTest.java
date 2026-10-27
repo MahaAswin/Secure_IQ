@@ -267,13 +267,13 @@ public class ViolationControllerTest {
         jdbcTemplate.execute("DELETE FROM exam_sessions");
         jdbcTemplate.execute("DELETE FROM exams");
         jdbcTemplate.execute("DELETE FROM students");
+        jdbcTemplate.execute("DELETE FROM question_options");
+        jdbcTemplate.execute("DELETE FROM questions");
+        jdbcTemplate.execute("DELETE FROM question_banks");
         jdbcTemplate.execute("DELETE FROM subject_faculty");
         jdbcTemplate.execute("DELETE FROM faculty_subjects");
         jdbcTemplate.execute("DELETE FROM subjects");
         jdbcTemplate.execute("DELETE FROM faculties");
-        jdbcTemplate.execute("DELETE FROM question_options");
-        jdbcTemplate.execute("DELETE FROM questions");
-        jdbcTemplate.execute("DELETE FROM question_banks");
         jdbcTemplate.execute("DELETE FROM departments");
         jdbcTemplate.execute("DELETE FROM users");
     }

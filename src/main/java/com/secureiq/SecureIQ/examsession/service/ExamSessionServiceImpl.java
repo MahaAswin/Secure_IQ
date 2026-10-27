@@ -102,7 +102,12 @@ public class ExamSessionServiceImpl implements ExamSessionService {
         if (isStudent) {
             Student student = studentRepository.findByUserId(principal.getId())
                     .orElseThrow(() -> new AccessDeniedException("Access denied: Student profile not found"));
-            Page<ExamSession> sessions = examSessionRepository.findAllFilteredForStudent(student.getId(), sessionCode, examId, facultyId, departmentId, status, pageable);
+            Long resolvedDeptId = departmentId != null ? departmentId : (student.getDepartment() != null ? student.getDepartment().getId() : null);
+            Page<ExamSession> sessions = examSessionRepository.findAllFilteredForStudent(student.getId(), sessionCode, examId, facultyId, resolvedDeptId, status, pageable);
+            System.out.println("  Found sessions count: " + sessions.getTotalElements());
+            if (sessions.getTotalElements() > 0) {
+                sessions.forEach(s -> System.out.println("    Session ID: " + s.getId() + ", Code: " + s.getSessionCode() + ", Status: " + s.getStatus()));
+            }
             return sessions.map(examSessionMapper::toResponse);
         }
 

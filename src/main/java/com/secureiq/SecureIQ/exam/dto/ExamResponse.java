@@ -3,6 +3,7 @@ package com.secureiq.SecureIQ.exam.dto;
 import com.secureiq.SecureIQ.exam.model.ExamType;
 import com.secureiq.SecureIQ.exam.model.ExamStatus;
 import lombok.*;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -24,8 +25,18 @@ public class ExamResponse {
     private Integer durationMinutes;
     private Integer passingMarks;
     private LocalDate scheduledDate;
+    private LocalDate scheduledEndDate;
     private LocalTime startTime;
     private LocalTime endTime;
+    private Instant scheduledStart;
+    private Instant scheduledEnd;
+    private Instant serverTime;
+    private String scheduleState;
+    private Boolean canStart;
+    private String accessMessage;
+    private String attemptStatus;
+    private Long attemptId;
+    private Long remainingSeconds;
     private String venue;
     private String instructions;
     private ExamStatus status;

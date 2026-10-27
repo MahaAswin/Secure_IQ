@@ -1,20 +1,68 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Camera, Clock, AlertTriangle, CheckCircle, Lock } from 'lucide-react';
+import { Shield, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
-import { mockExams } from '@/services/mockData';
-import { formatSeconds } from '@/utils';
 import { ROUTES } from '@/constants';
+import api from '@/services/api';
+import toast from 'react-hot-toast';
 
 export function JoinExamPage() {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
-  const exam = mockExams.find((e) => e.id === examId) ?? mockExams[0];
+  const [exam, setExam] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState(false);
   const [step, setStep] = useState<'check' | 'briefing' | 'ready'>('check');
   const [checks, setChecks] = useState({ camera: false, fullscreen: false, network: false });
-  const [timeLeft, setTimeLeft] = useState(exam.duration * 60);
+
+  useEffect(() => {
+    async function fetchExam() {
+      try {
+        const response = await api.get(`/v1/exams/${examId}`);
+        const backendExam = response.data.data;
+        const mappedExam = {
+          id: backendExam.id.toString(),
+          title: backendExam.examTitle,
+          subject: backendExam.subject ? `${backendExam.subject.subjectCode} - ${backendExam.subject.subjectName}` : 'N/A',
+          code: backendExam.examCode,
+          description: backendExam.description || '',
+          facultyId: backendExam.faculty?.id?.toString() || '',
+          facultyName: backendExam.faculty?.name || 'N/A',
+          department: backendExam.department?.name || 'N/A',
+          startTime: backendExam.scheduledStart || `${backendExam.scheduledDate}T${backendExam.startTime}`,
+          endTime: backendExam.scheduledEnd || `${backendExam.scheduledEndDate || backendExam.scheduledDate}T${backendExam.endTime}`,
+          scheduledDate: backendExam.scheduledDate,
+          scheduledEndDate: backendExam.scheduledEndDate,
+          scheduledStart: backendExam.scheduledStart,
+          scheduledEnd: backendExam.scheduledEnd,
+          scheduleState: backendExam.scheduleState,
+          canStart: backendExam.canStart,
+          accessMessage: backendExam.accessMessage,
+          attemptStatus: backendExam.attemptStatus,
+          attemptId: backendExam.attemptId,
+          remainingSeconds: backendExam.remainingSeconds,
+          duration: backendExam.durationMinutes,
+          totalMarks: backendExam.totalMarks,
+          passingMarks: backendExam.passingMarks,
+          status: backendExam.status.toLowerCase(),
+          venue: backendExam.venue || 'N/A',
+          enrolledCount: 0,
+          maxStudents: 100,
+          createdAt: backendExam.createdAt || '',
+          instructions: backendExam.instructions ? backendExam.instructions.split('\n') : [],
+          isAIMonitored: true,
+        };
+        setExam(mappedExam);
+      } catch (err) {
+        toast.error('Failed to load exam details');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchExam();
+  }, [examId]);
 
   useEffect(() => {
     // Simulate system checks
@@ -23,6 +71,74 @@ export function JoinExamPage() {
     const t3 = setTimeout(() => setChecks((c) => ({ ...c, fullscreen: true })), 2200);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (!exam) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12">
+        <h2 className="text-xl font-bold text-foreground">Exam not found</h2>
+        <Button variant="primary" className="mt-4" onClick={() => navigate(ROUTES.STUDENT.EXAMS)}>
+          Back to Exams
+        </Button>
+      </div>
+    );
+  }
+
+  if (exam && !exam.canStart) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
+          <h1 className="font-display font-bold text-foreground text-2xl">{exam.title}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{exam.code} · {exam.department}</p>
+        </div>
+        <Card className="p-8 text-center space-y-4">
+          <div className="h-12 w-12 rounded-full bg-danger/10 text-danger flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <h2 className="text-lg font-bold text-foreground">Exam Access Restricted</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            {exam.accessMessage || 'This exam is not available at the current time.'}
+          </p>
+          <div className="pt-2">
+            <Button variant="primary" onClick={() => navigate(ROUTES.STUDENT.EXAMS)}>
+              Back to My Exams
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const handleEnterBrowser = async () => {
+    try {
+      setStarting(true);
+      const res = await api.post('/v1/attempts/start', { examId: parseInt(exam.id) });
+      const attempt = res.data?.data;
+      navigate(`${ROUTES.SECURE_BROWSER}?examId=${exam.id}&attemptId=${attempt?.id || ''}`);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Access denied: Unable to start exam attempt';
+      toast.error(msg);
+      try {
+        const refreshRes = await api.get(`/v1/exams/${examId}`);
+        const backendExam = refreshRes.data.data;
+        setExam((prev: any) => ({
+          ...prev,
+          canStart: backendExam.canStart,
+          scheduleState: backendExam.scheduleState,
+          accessMessage: backendExam.accessMessage,
+        }));
+      } catch {}
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const allChecked = Object.values(checks).every(Boolean);
 
@@ -97,7 +213,7 @@ export function JoinExamPage() {
               </div>
             </div>
             <div className="space-y-2">
-              {exam.instructions.map((inst, i) => (
+              {exam.instructions.map((inst: string, i: number) => (
                 <div key={i} className="flex gap-2.5 text-sm text-foreground">
                   <span className="text-primary font-bold mt-0.5">{i + 1}.</span>
                   <span>{inst}</span>
@@ -114,7 +230,7 @@ export function JoinExamPage() {
             )}
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setStep('check')}>Back</Button>
-              <Button variant="primary" className="flex-1" onClick={() => navigate(ROUTES.SECURE_BROWSER)}>
+              <Button variant="primary" className="flex-1" isLoading={starting} onClick={handleEnterBrowser}>
                 Enter Secure Browser
               </Button>
             </div>

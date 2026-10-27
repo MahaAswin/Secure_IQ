@@ -41,7 +41,7 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
         Pageable pageable
     );
 
-    @Query("SELECT e FROM Exam e WHERE e.department.id = :departmentId AND e.semester = :semester AND " +
+    @Query("SELECT e FROM Exam e WHERE e.department.id = :departmentId AND e.semester = :semester AND e.status <> com.secureiq.SecureIQ.exam.model.ExamStatus.DRAFT AND " +
            "(:examTitle IS NULL OR :examTitle = '' OR LOWER(e.examTitle) LIKE LOWER(CONCAT('%', :examTitle, '%'))) AND " +
            "(:subjectId IS NULL OR e.subject.id = :subjectId) AND " +
            "(:facultyId IS NULL OR e.faculty.id = :facultyId) AND " +

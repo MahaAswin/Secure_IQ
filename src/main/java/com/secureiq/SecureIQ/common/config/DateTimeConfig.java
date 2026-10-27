@@ -1,0 +1,18 @@
+package com.secureiq.SecureIQ.common.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.time.Clock;
+import java.time.ZoneId;
+
+@Configuration
+public class DateTimeConfig {
+
+    public static final ZoneId INSTITUTION_ZONE = ZoneId.of("Asia/Kolkata");
+
+    @Bean
+    public Clock clock() {
+        return Clock.system(INSTITUTION_ZONE);
+    }
+}

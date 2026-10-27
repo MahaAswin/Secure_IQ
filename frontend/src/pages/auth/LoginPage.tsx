@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -47,6 +47,13 @@ export function LoginPage() {
     resolver: zodResolver(authSchema),
     defaultValues: { role: UserRole.STUDENT },
   });
+
+  useEffect(() => {
+    // Auto-fill default credentials for the default role (Student) on mount
+    const creds = DEMO_CREDENTIALS[UserRole.STUDENT];
+    setValue('email', creds.email);
+    setValue('password', creds.password);
+  }, [setValue]);
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);

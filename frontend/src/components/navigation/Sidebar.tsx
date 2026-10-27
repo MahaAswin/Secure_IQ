@@ -31,6 +31,7 @@ const studentNav: NavItem[] = [
 const facultyNav: NavItem[] = [
   { label: 'Dashboard', href: ROUTES.FACULTY.DASHBOARD, icon: LayoutDashboard },
   { label: 'Exams', href: ROUTES.FACULTY.EXAMS, icon: BookOpen },
+  { label: 'Question Bank', href: ROUTES.FACULTY.QUESTIONS, icon: ClipboardList },
   { label: 'Live Monitoring', href: ROUTES.FACULTY.MONITORING, icon: MonitorPlay, badge: 'Live' },
   { label: 'Analytics', href: ROUTES.FACULTY.ANALYTICS, icon: BarChart3 },
   { label: 'Reports', href: ROUTES.FACULTY.REPORTS, icon: FileText },

@@ -17,6 +17,10 @@ import com.secureiq.SecureIQ.faculty.repository.FacultyRepository;
 import com.secureiq.SecureIQ.student.model.Student;
 import com.secureiq.SecureIQ.student.repository.StudentRepository;
 import com.secureiq.SecureIQ.subject.model.Subject;
+import com.secureiq.SecureIQ.common.config.DateTimeConfig;
+import com.secureiq.SecureIQ.examattempt.model.AttemptStatus;
+import com.secureiq.SecureIQ.examattempt.model.StudentExamAttempt;
+import com.secureiq.SecureIQ.examattempt.repository.StudentExamAttemptRepository;
 import com.secureiq.SecureIQ.subject.repository.SubjectRepository;
 import com.secureiq.SecureIQ.user.model.User;
 import org.springframework.data.domain.Page;
@@ -27,8 +31,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -41,20 +51,26 @@ public class ExamServiceImpl implements ExamService {
     private final FacultyRepository facultyRepository;
     private final DepartmentRepository departmentRepository;
     private final StudentRepository studentRepository;
+    private final StudentExamAttemptRepository attemptRepository;
     private final ExamMapper examMapper;
+    private final Clock clock;
 
     public ExamServiceImpl(ExamRepository examRepository,
                            SubjectRepository subjectRepository,
                            FacultyRepository facultyRepository,
                            DepartmentRepository departmentRepository,
                            StudentRepository studentRepository,
-                           ExamMapper examMapper) {
+                           StudentExamAttemptRepository attemptRepository,
+                           ExamMapper examMapper,
+                           Clock clock) {
         this.examRepository = examRepository;
         this.subjectRepository = subjectRepository;
         this.facultyRepository = facultyRepository;
         this.departmentRepository = departmentRepository;
         this.studentRepository = studentRepository;
+        this.attemptRepository = attemptRepository;
         this.examMapper = examMapper;
+        this.clock = clock;
     }
 
     @Override
@@ -72,7 +88,8 @@ public class ExamServiceImpl implements ExamService {
         User principal = (User) auth.getPrincipal();
 
         if (isAdmin) {
-            return examRepository.findAllFiltered(examTitle, subjectId, facultyId, departmentId, status, pageable).map(examMapper::toResponse);
+            return examRepository.findAllFiltered(examTitle, subjectId, facultyId, departmentId, status, pageable)
+                    .map(e -> toEnrichedResponse(e, principal, isStudent));
         }
 
         if (isHod) {
@@ -81,7 +98,8 @@ public class ExamServiceImpl implements ExamService {
             if (departmentId != null && !departmentId.equals(dept.getId())) {
                 throw new AccessDeniedException("Access denied: HOD can only view exams in their own department");
             }
-            return examRepository.findAllFilteredForHOD(dept.getId(), examTitle, subjectId, facultyId, status, pageable).map(examMapper::toResponse);
+            return examRepository.findAllFilteredForHOD(dept.getId(), examTitle, subjectId, facultyId, status, pageable)
+                    .map(e -> toEnrichedResponse(e, principal, isStudent));
         }
 
         if (isFaculty) {
@@ -90,7 +108,8 @@ public class ExamServiceImpl implements ExamService {
             if (facultyId != null && !facultyId.equals(faculty.getId())) {
                 throw new AccessDeniedException("Access denied: Faculty can only view their own exams");
             }
-            return examRepository.findAllFilteredForFaculty(faculty.getId(), examTitle, subjectId, departmentId, status, pageable).map(examMapper::toResponse);
+            return examRepository.findAllFilteredForFaculty(faculty.getId(), examTitle, subjectId, departmentId, status, pageable)
+                    .map(e -> toEnrichedResponse(e, principal, isStudent));
         }
 
         if (isStudent) {
@@ -99,7 +118,8 @@ public class ExamServiceImpl implements ExamService {
             if (departmentId != null && !departmentId.equals(student.getDepartment().getId())) {
                 throw new AccessDeniedException("Access denied: Student can only view exams in their own department");
             }
-            return examRepository.findAllFilteredForStudent(student.getDepartment().getId(), student.getSemester(), examTitle, subjectId, facultyId, status, pageable).map(examMapper::toResponse);
+            return examRepository.findAllFilteredForStudent(student.getDepartment().getId(), student.getSemester(), examTitle, subjectId, facultyId, status, pageable)
+                    .map(e -> toEnrichedResponse(e, principal, isStudent));
         }
 
         throw new AccessDeniedException("Access denied: Unauthorized role");
@@ -109,7 +129,10 @@ public class ExamServiceImpl implements ExamService {
     public ExamResponse getById(Long id) {
         Exam exam = getEntityById(id);
         checkExamReadAccess(exam);
-        return examMapper.toResponse(exam);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        User principal = auth != null && auth.getPrincipal() instanceof User ? (User) auth.getPrincipal() : null;
+        boolean isStudent = auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
+        return toEnrichedResponse(exam, principal, isStudent);
     }
 
     @Override
@@ -128,6 +151,7 @@ public class ExamServiceImpl implements ExamService {
                 request.getPassingMarks(),
                 request.getDurationMinutes(),
                 request.getScheduledDate(),
+                request.getScheduledEndDate(),
                 request.getStartTime(),
                 request.getEndTime()
         );
@@ -163,7 +187,7 @@ public class ExamServiceImpl implements ExamService {
 
         Exam exam = examMapper.toEntity(request, subject, faculty, department);
         Exam savedExam = examRepository.save(exam);
-        return examMapper.toResponse(savedExam);
+        return toEnrichedResponse(savedExam, principal, false);
     }
 
     @Override
@@ -179,6 +203,7 @@ public class ExamServiceImpl implements ExamService {
                 request.getPassingMarks(),
                 request.getDurationMinutes(),
                 request.getScheduledDate(),
+                request.getScheduledEndDate(),
                 request.getStartTime(),
                 request.getEndTime()
         );
@@ -220,7 +245,7 @@ public class ExamServiceImpl implements ExamService {
 
         examMapper.updateEntity(request, subject, faculty, department, exam);
         Exam savedExam = examRepository.save(exam);
-        return examMapper.toResponse(savedExam);
+        return toEnrichedResponse(savedExam, principal, false);
     }
 
     @Override
@@ -234,10 +259,11 @@ public class ExamServiceImpl implements ExamService {
         Integer pMarks = request.getPassingMarks() != null ? request.getPassingMarks() : exam.getPassingMarks();
         Integer duration = request.getDurationMinutes() != null ? request.getDurationMinutes() : exam.getDurationMinutes();
         LocalDate date = request.getScheduledDate() != null ? request.getScheduledDate() : exam.getScheduledDate();
+        LocalDate eDate = request.getScheduledEndDate() != null ? request.getScheduledEndDate() : exam.getScheduledEndDate();
         LocalTime sTime = request.getStartTime() != null ? request.getStartTime() : exam.getStartTime();
         LocalTime eTime = request.getEndTime() != null ? request.getEndTime() : exam.getEndTime();
 
-        validateExamBusinessRules(code, id, tMarks, pMarks, duration, date, sTime, eTime);
+        validateExamBusinessRules(code, id, tMarks, pMarks, duration, date, eDate, sTime, eTime);
 
         if (request.getExamCode() != null && !exam.getExamCode().equalsIgnoreCase(request.getExamCode()) && examRepository.existsByExamCode(request.getExamCode())) {
             throw new ConflictException("Exam Code is already registered");
@@ -285,7 +311,7 @@ public class ExamServiceImpl implements ExamService {
 
         examMapper.patchEntity(request, subject, faculty, department, exam);
         Exam savedExam = examRepository.save(exam);
-        return examMapper.toResponse(savedExam);
+        return toEnrichedResponse(savedExam, principal, false);
     }
 
     @Override
@@ -333,31 +359,32 @@ public class ExamServiceImpl implements ExamService {
         boolean isStudent = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
         User principal = (User) auth.getPrincipal();
 
+        LocalDate today = LocalDate.now(clock);
         List<Exam> exams;
 
         if (isAdmin) {
-            exams = examRepository.findByScheduledDateAfterOrderByScheduledDateAscStartTimeAsc(LocalDate.now());
+            exams = examRepository.findByScheduledDateAfterOrderByScheduledDateAscStartTimeAsc(today);
         } else if (isHod) {
             Department dept = departmentRepository.findByHodId(principal.getId())
                     .orElseThrow(() -> new AccessDeniedException("Access denied: HOD is not assigned to any department"));
-            exams = examRepository.findByDepartmentIdAndScheduledDateAfterOrderByScheduledDateAsc(dept.getId(), LocalDate.now());
+            exams = examRepository.findByDepartmentIdAndScheduledDateAfterOrderByScheduledDateAsc(dept.getId(), today);
         } else if (isFaculty) {
             Faculty faculty = facultyRepository.findByUserId(principal.getId())
                     .orElseThrow(() -> new NotFoundException("Faculty profile not found for user: " + principal.getEmail()));
-            exams = examRepository.findByFacultyIdAndScheduledDateAfterOrderByScheduledDateAscStartTimeAsc(faculty.getId(), LocalDate.now());
+            exams = examRepository.findByFacultyIdAndScheduledDateAfterOrderByScheduledDateAscStartTimeAsc(faculty.getId(), today);
         } else if (isStudent) {
             Student student = studentRepository.findByUserId(principal.getId())
                     .orElseThrow(() -> new AccessDeniedException("Access denied: Logged in user is not registered as a student"));
             exams = examRepository.findByDepartmentIdAndSemesterAndScheduledDateAfterOrderByScheduledDateAscStartTimeAsc(
                     student.getDepartment().getId(), 
                     student.getSemester(), 
-                    LocalDate.now()
+                    today
             );
         } else {
             exams = List.of();
         }
 
-        return exams.stream().map(examMapper::toResponse).toList();
+        return exams.stream().map(e -> toEnrichedResponse(e, principal, isStudent)).toList();
     }
 
     @Override
@@ -372,34 +399,34 @@ public class ExamServiceImpl implements ExamService {
         boolean isStudent = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
         User principal = (User) auth.getPrincipal();
 
+        LocalDate today = LocalDate.now(clock);
         List<Exam> exams;
 
         if (isAdmin) {
-            exams = examRepository.findByScheduledDateOrderByStartTimeAsc(LocalDate.now());
+            exams = examRepository.findByScheduledDateOrderByStartTimeAsc(today);
         } else if (isHod) {
             Department dept = departmentRepository.findByHodId(principal.getId())
                     .orElseThrow(() -> new AccessDeniedException("Access denied: HOD is not assigned to any department"));
-            // For HOD, return all CSE exams scheduled today
-            exams = examRepository.findByScheduledDateOrderByStartTimeAsc(LocalDate.now()).stream()
+            exams = examRepository.findByScheduledDateOrderByStartTimeAsc(today).stream()
                     .filter(e -> e.getDepartment() != null && e.getDepartment().getId().equals(dept.getId()))
                     .toList();
         } else if (isFaculty) {
             Faculty faculty = facultyRepository.findByUserId(principal.getId())
                     .orElseThrow(() -> new NotFoundException("Faculty profile not found for user: " + principal.getEmail()));
-            exams = examRepository.findByFacultyIdAndScheduledDateOrderByStartTimeAsc(faculty.getId(), LocalDate.now());
+            exams = examRepository.findByFacultyIdAndScheduledDateOrderByStartTimeAsc(faculty.getId(), today);
         } else if (isStudent) {
             Student student = studentRepository.findByUserId(principal.getId())
                     .orElseThrow(() -> new AccessDeniedException("Access denied: Logged in user is not registered as a student"));
             exams = examRepository.findByDepartmentIdAndSemesterAndScheduledDateOrderByStartTimeAsc(
                     student.getDepartment().getId(), 
                     student.getSemester(), 
-                    LocalDate.now()
+                    today
             );
         } else {
             exams = List.of();
         }
 
-        return exams.stream().map(examMapper::toResponse).toList();
+        return exams.stream().map(e -> toEnrichedResponse(e, principal, isStudent)).toList();
     }
 
     @Override
@@ -435,7 +462,7 @@ public class ExamServiceImpl implements ExamService {
             exams = List.of();
         }
 
-        return exams.stream().map(examMapper::toResponse).toList();
+        return exams.stream().map(e -> toEnrichedResponse(e, principal, isStudent)).toList();
     }
 
     @Override
@@ -450,6 +477,7 @@ public class ExamServiceImpl implements ExamService {
         boolean isStudent = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
         User principal = (User) auth.getPrincipal();
 
+        LocalDate today = LocalDate.now(clock);
         ExamDashboardResponse.ExamDashboardResponseBuilder builder = ExamDashboardResponse.builder();
 
         if (isAdmin || isHod) {
@@ -485,10 +513,10 @@ public class ExamServiceImpl implements ExamService {
                     .orElseThrow(() -> new NotFoundException("Faculty profile not found for user: " + principal.getEmail()));
 
             List<Exam> created = examRepository.findAllFilteredForFaculty(faculty.getId(), null, null, null, null, Pageable.unpaged()).getContent();
-            List<Exam> scheduled = examRepository.findByFacultyIdAndScheduledDateAfterOrderByScheduledDateAscStartTimeAsc(faculty.getId(), LocalDate.now());
+            List<Exam> scheduled = examRepository.findByFacultyIdAndScheduledDateAfterOrderByScheduledDateAscStartTimeAsc(faculty.getId(), today);
 
-            builder.createdExams(created.stream().map(examMapper::toResponse).toList())
-                    .scheduledExams(scheduled.stream().map(examMapper::toResponse).toList());
+            builder.createdExams(created.stream().map(e -> toEnrichedResponse(e, principal, false)).toList())
+                    .scheduledExams(scheduled.stream().map(e -> toEnrichedResponse(e, principal, false)).toList());
 
         } else if (isStudent) {
             builder.role("STUDENT");
@@ -498,16 +526,16 @@ public class ExamServiceImpl implements ExamService {
             List<Exam> upcoming = examRepository.findByDepartmentIdAndSemesterAndScheduledDateAfterOrderByScheduledDateAscStartTimeAsc(
                     student.getDepartment().getId(), 
                     student.getSemester(), 
-                    LocalDate.now()
+                    today
             );
             List<Exam> todays = examRepository.findByDepartmentIdAndSemesterAndScheduledDateOrderByStartTimeAsc(
                     student.getDepartment().getId(), 
                     student.getSemester(), 
-                    LocalDate.now()
+                    today
             );
 
-            builder.upcomingExams(upcoming.stream().map(examMapper::toResponse).toList())
-                    .todaysExams(todays.stream().map(examMapper::toResponse).toList());
+            builder.upcomingExams(upcoming.stream().map(e -> toEnrichedResponse(e, principal, true)).toList())
+                    .todaysExams(todays.stream().map(e -> toEnrichedResponse(e, principal, true)).toList());
         }
 
         return builder.build();
@@ -518,19 +546,145 @@ public class ExamServiceImpl implements ExamService {
                 .orElseThrow(() -> new NotFoundException("Exam not found with id: " + id));
     }
 
-    private void validateExamBusinessRules(String examCode, Long id, Integer totalMarks, Integer passingMarks, Integer durationMinutes, LocalDate scheduledDate, LocalTime startTime, LocalTime endTime) {
-        if (passingMarks > totalMarks) {
+    private void validateExamBusinessRules(String examCode, Long id, Integer totalMarks, Integer passingMarks, Integer durationMinutes, LocalDate scheduledDate, LocalDate scheduledEndDate, LocalTime startTime, LocalTime endTime) {
+        if (scheduledDate == null) {
+            throw new BadRequestException("Scheduled start date cannot be missing");
+        }
+        if (startTime == null) {
+            throw new BadRequestException("Start time cannot be missing");
+        }
+        if (endTime == null) {
+            throw new BadRequestException("End time cannot be missing");
+        }
+        if (passingMarks != null && totalMarks != null && passingMarks > totalMarks) {
             throw new BadRequestException("Passing marks cannot exceed total marks");
         }
-        if (durationMinutes <= 0) {
+        if (durationMinutes != null && durationMinutes <= 0) {
             throw new BadRequestException("Duration must be positive");
         }
-        if (scheduledDate.isBefore(LocalDate.now())) {
+        LocalDate effectiveEndDate = scheduledEndDate != null ? scheduledEndDate : scheduledDate;
+        LocalDate today = LocalDate.now(clock);
+        if (scheduledDate.isBefore(today)) {
             throw new BadRequestException("Scheduled date cannot be in the past");
         }
-        if (startTime.isAfter(endTime) || startTime.equals(endTime)) {
+        LocalDateTime startLdt = LocalDateTime.of(scheduledDate, startTime);
+        LocalDateTime endLdt = LocalDateTime.of(effectiveEndDate, endTime);
+        if (!startLdt.isBefore(endLdt)) {
             throw new BadRequestException("Start time must be before end time");
         }
+        if (durationMinutes != null) {
+            Instant startInstant = startLdt.atZone(DateTimeConfig.INSTITUTION_ZONE).toInstant();
+            Instant endInstant = endLdt.atZone(DateTimeConfig.INSTITUTION_ZONE).toInstant();
+            long windowMinutes = Duration.between(startInstant, endInstant).toMinutes();
+            if (durationMinutes > windowMinutes) {
+                throw new BadRequestException("Exam duration cannot exceed the scheduled window (" + windowMinutes + " minutes)");
+            }
+        }
+    }
+
+    private ExamResponse toEnrichedResponse(Exam exam, User principal, boolean isStudent) {
+        ExamResponse res = examMapper.toResponse(exam);
+        Instant now = clock.instant();
+        res.setServerTime(now);
+
+        Instant start = exam.getAuthoritativeStartInstant();
+        Instant end = exam.getAuthoritativeEndInstant();
+
+        if (exam.getStatus() == ExamStatus.CANCELLED) {
+            res.setScheduleState("CANCELLED");
+            res.setCanStart(false);
+            res.setAccessMessage("This exam has been cancelled.");
+            return res;
+        }
+
+        if (exam.getStatus() == ExamStatus.DRAFT) {
+            res.setScheduleState("DRAFT");
+            res.setCanStart(false);
+            res.setAccessMessage("This exam is currently in draft.");
+            return res;
+        }
+
+        if (start != null && now.isBefore(start)) {
+            res.setScheduleState("UPCOMING");
+            res.setCanStart(false);
+            DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.forLanguageTag("en-IN"));
+            DateTimeFormatter timeFmt = DateTimeFormatter.ofPattern("hh:mm a", Locale.forLanguageTag("en-IN"));
+            ZonedDateTime zdt = start.atZone(DateTimeConfig.INSTITUTION_ZONE);
+            res.setAccessMessage("This exam is not available yet. The exam starts on " + zdt.format(dateFmt) + " at " + zdt.format(timeFmt) + ".");
+            return res;
+        }
+
+        if (end != null && !now.isBefore(end)) {
+            res.setScheduleState("EXPIRED");
+            res.setCanStart(false);
+            res.setAccessMessage("The scheduled exam has ended.");
+            return res;
+        }
+
+        // Current time is within [start, end)
+        if (isStudent && principal != null) {
+            Student student = studentRepository.findByUserId(principal.getId()).orElse(null);
+            if (student != null) {
+                boolean matchesDept = exam.getDepartment() == null || exam.getDepartment().getId().equals(student.getDepartment().getId());
+                boolean matchesSem = exam.getSemester() == null || exam.getSemester().equals(student.getSemester());
+                if (!matchesDept || !matchesSem) {
+                    res.setScheduleState("UNAUTHORIZED");
+                    res.setCanStart(false);
+                    res.setAccessMessage("You are not authorized to attend this exam.");
+                    return res;
+                }
+
+                Optional<StudentExamAttempt> optAttempt = attemptRepository.findFirstByStudentIdAndExamId(student.getId(), exam.getId());
+                if (optAttempt.isPresent()) {
+                    StudentExamAttempt att = optAttempt.get();
+                    res.setAttemptId(att.getId());
+                    res.setAttemptStatus(att.getStatus().name());
+
+                    if (att.getStatus() == AttemptStatus.SUBMITTED || att.getStatus() == AttemptStatus.AUTO_SUBMITTED) {
+                        res.setScheduleState("COMPLETED");
+                        res.setCanStart(false);
+                        res.setAccessMessage(att.getStatus() == AttemptStatus.AUTO_SUBMITTED
+                                ? "Your exam was auto-submitted."
+                                : "You have already completed this exam.");
+                        return res;
+                    }
+                    if (att.getStatus() == AttemptStatus.TERMINATED) {
+                        res.setScheduleState("TERMINATED");
+                        res.setCanStart(false);
+                        res.setAccessMessage("Your exam attempt has been terminated.");
+                        return res;
+                    }
+                    if (att.getStatus() == AttemptStatus.IN_PROGRESS) {
+                        Instant effectiveDeadline = att.getAuthoritativeEndTime();
+                        if (effectiveDeadline == null) {
+                            effectiveDeadline = end;
+                        }
+                        if (effectiveDeadline != null && !now.isBefore(effectiveDeadline)) {
+                            res.setScheduleState("EXPIRED");
+                            res.setCanStart(false);
+                            res.setAccessMessage("Your exam attempt has expired.");
+                            return res;
+                        }
+                        long remainingSeconds = effectiveDeadline != null ? Math.max(0, Duration.between(now, effectiveDeadline).toSeconds()) : 0;
+                        res.setRemainingSeconds(remainingSeconds);
+                        res.setScheduleState("IN_PROGRESS");
+                        res.setCanStart(true);
+                        res.setAccessMessage("Your exam attempt is in progress. You can resume your exam.");
+                        return res;
+                    }
+                }
+
+                res.setScheduleState("AVAILABLE");
+                res.setCanStart(true);
+                res.setAccessMessage("Exam is available. You can start the exam.");
+                return res;
+            }
+        }
+
+        res.setScheduleState("AVAILABLE");
+        res.setCanStart(true);
+        res.setAccessMessage("Exam window is currently active.");
+        return res;
     }
 
     private void checkExamReadAccess(Exam exam) {
@@ -572,6 +726,9 @@ public class ExamServiceImpl implements ExamService {
             if (exam.getDepartment() == null || !exam.getDepartment().getId().equals(student.getDepartment().getId()) ||
                     exam.getSemester() == null || !exam.getSemester().equals(student.getSemester())) {
                 throw new AccessDeniedException("Access denied: Student can only view exams in their own department and semester");
+            }
+            if (exam.getStatus() == ExamStatus.DRAFT) {
+                throw new AccessDeniedException("Access denied: Draft exams are not available to students");
             }
             return;
         }
